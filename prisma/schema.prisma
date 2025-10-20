@@ -1,0 +1,78 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ChatRoles {
+  ADMIN
+  MEMBER
+}
+
+model User {
+  id                           Int        @id @default(autoincrement())
+  name                         String
+  email                        String     @unique
+  avatarLink                   String?
+  password                     String
+  createdAt                    DateTime   @default(now())
+  refreshToken                 String?
+  expireRefreshToken           DateTime?
+  emailVerificationToken       String?
+  expireEmailVerificationToken DateTime?
+  messages                     Message[]
+  userChats                    UserChat[]
+
+  @@index([email])
+}
+
+model Chat {
+  id        Int         @id @default(autoincrement())
+  name      String?
+  isGroup   Boolean     @default(false)
+  createdAt DateTime    @default(now())
+  messages  Message[]
+  users     UserChat[]
+  chatMedia ChatMedia[]
+}
+
+model UserChat {
+  id     Int       @id @default(autoincrement())
+  user   User      @relation(fields: [userId], references: [id])
+  userId Int
+  chat   Chat      @relation(fields: [chatId], references: [id])
+  chatId Int
+  role   ChatRoles
+
+  @@unique([userId, chatId])
+}
+
+model Message {
+  id        Int      @id @default(autoincrement())
+  text      String
+  createdAt DateTime @default(now())
+  chat      Chat     @relation(fields: [chatId], references: [id])
+  chatId    Int
+  sender    User     @relation(fields: [senderId], references: [id])
+  senderId  Int
+}
+
+model ChatMedia {
+  id        Int      @id @default(autoincrement())
+  images    String?
+  videos    String?
+  order     Int?
+  createdAt DateTime @default(now())
+  chat      Chat     @relation(fields: [chatId], references: [id])
+  chatId    Int
+}
