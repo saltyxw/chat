@@ -20,8 +20,10 @@ export class AuthService {
 
         const payload = { sub: newUser.id, name: newUser.name, avatarLink: newUser.avatarLink, email: newUser.email }
 
+        const refreshToken = await this.writeRefreshToken(payload);
+
         return {
-            access_token: await this.jwtService.signAsync(payload)
+            accessToken: await this.jwtService.signAsync(payload), refreshToken
         }
     }
 
@@ -32,9 +34,47 @@ export class AuthService {
         if (!isPasswordValid) throw new UnauthorizedException('Wrong password');
 
         const payload = { sub: user.id, name: user.name, avatarLink: user.avatarLink, email: user.email }
+        const refreshToken = await this.writeRefreshToken(payload);
 
         return {
-            access_token: await this.jwtService.signAsync(payload)
+            accessToken: await this.jwtService.signAsync(payload), refreshToken
         }
     }
+
+
+    async writeRefreshToken(payload) {
+        const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
+        const decoded = this.jwtService.decode(refreshToken) as { exp: number };
+
+        const expTimeRefreshToken = new Date(decoded.exp * 1000);
+        const hashedToken = await bcrypt.hash(refreshToken, 10);
+
+        await this.prismaService.user.update({
+            where: { id: payload.sub },
+            data: { refreshToken: hashedToken, expireRefreshToken: expTimeRefreshToken },
+        });
+
+        return refreshToken
+    }
+
+    async getUserByRefreshToken(userId: number, token: string) {
+        const user = await this.prismaService.user.findUnique({ where: { id: userId } });
+        if (!user || !user.refreshToken || !user.expireRefreshToken) return null;
+
+        const match = await bcrypt.compare(token, user.refreshToken);
+        if (match && user.expireRefreshToken > new Date()) return user;
+
+        return null;
+    }
+
+    async deleteRefreshToken(userId: number) {
+        await this.prismaService.user.update({
+            where: { id: userId }, data: {
+                refreshToken: null, expireRefreshToken: null
+            }
+        });
+    }
+
+
+
 }
