@@ -2,7 +2,6 @@ import { AuthService } from './auth.service';
 import {
   Body,
   Controller,
-  Get,
   Res,
   Req,
   Post,
@@ -97,14 +96,6 @@ export class AuthController {
 
     return { message: 'Logged out successfully' };
   }
-
-  @UseGuards(AuthGuard)
-  @Get('profile')
-  getProfile(@Request() req) {
-    return req.user
-  }
-
-
 
 
 }

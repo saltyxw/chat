@@ -1,65 +1,86 @@
-"use client"
-import { useState, useEffect } from "react";
-import { io } from "socket.io-client";
+"use client";
 
-const socket = io('http://localhost:4000');
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import useDebounce from "@/hooks/useDebounce";
+import { getProfile, searchUserByName } from "@/api/user/user";
+import { createOrGetPrivateChat } from "@/api/chat/chat";
+import { logout } from "@/api/auth/auth";
 
 export default function Home() {
-  const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState([]);
+  const router = useRouter();
+  const [searchUser, setSearchUser] = useState("");
+  const [results, setResults] = useState<any[]>([]);
+  const debounceSearchUser = useDebounce(searchUser, 1000);
 
   useEffect(() => {
-    socket.on("connect", () => {
-      console.log("connected", socket.id);
-    });
+    if (debounceSearchUser) handleSearch(debounceSearchUser);
+    else setResults([]);
+  }, [debounceSearchUser]);
 
-    socket.on("chatHistory", (msgs) => {
-      setMessages(msgs);
-    });
+  const handleSearch = async (query: string) => {
+    try {
+      const data = await searchUserByName(query);
+      setResults(data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
-    socket.on("chatMessage", (msg) => {
-      setMessages(prev => [...prev, msg]);
-    });
+  const handleWrite = async (userId: number) => {
+    try {
+      const chat = await createOrGetPrivateChat(userId);
+      console.log("Chat created or found:", chat);
 
-    return () => {
-      socket.off("connect");
-      socket.off("chatHistory");
-      socket.off("chatMessage");
-      socket.off("disconnect");
-    };
-  }, []);
-
-  const sendMsg = () => {
-    if (message.trim() === "") return;
-    socket.emit("chatMessage", { user: "Tester", text: message });
-    setMessage('');
-  }
+      router.push(`/chat/${chat.chatId}`);
+    } catch (err) {
+      console.error("Failed to start chat:", err);
+    }
+  };
 
   return (
-    <div className="min-h-screen flex flex-col items-center bg-gray-100 p-4">
-      <h2 className="text-center text-4xl mb-4">Messages</h2>
-      <div className="bg-amber-100 w-full max-w-3xl flex-1 p-4 overflow-y-auto">
-        {messages.map((msg, index) => (
-          <div key={index} className="mb-2">
-            <strong>{msg.user}:</strong> {msg.text}
-          </div>
-        ))}
-      </div>
-      <div className="flex mt-4 w-full max-w-3xl gap-2">
-        <input
-          type="text"
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          className="flex-1 p-2 border rounded"
-          placeholder="Type your message..."
-          onKeyDown={(e) => { if (e.key === 'Enter') sendMsg() }}
-        />
+    <div className="p-5">
+      <div className="flex gap-2">
+        <button className="bg-green-600 text-white px-3 py-2 rounded">CALL</button>
         <button
-          onClick={sendMsg}
-          className="px-4 bg-red-500 text-white rounded"
+          onClick={getProfile}
+          className="bg-blue-600 text-white px-3 py-2 rounded"
         >
-          Send
+          Profile
         </button>
+        <button onClick={logout}>Logout</button>
+      </div>
+
+      <div className="relative max-w-xs mt-4">
+        <input
+          className="p-2 bg-violet-700 text-white w-full rounded"
+          type="search"
+          value={searchUser}
+          onChange={(e) => setSearchUser(e.target.value)}
+          placeholder="Пошук користувача..."
+        />
+
+        {results.length > 0 && (
+          <div className="absolute w-full bg-amber-300 mt-1 rounded shadow">
+            {results.map((user) => (
+              <div
+                key={user.id}
+                className="p-2 border-b border-black flex justify-between items-center"
+              >
+                <div>
+                  <div className="font-semibold">{user.name}</div>
+                  <div className="text-sm text-gray-700">{user.email}</div>
+                </div>
+                <button
+                  onClick={() => handleWrite(user.id)}
+                  className="bg-blue-700 text-white px-3 py-1 rounded hover:bg-blue-800"
+                >
+                  Написати
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
