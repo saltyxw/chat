@@ -4,15 +4,20 @@ import { useEffect, useState } from "react";
 import { MessageType } from "@/types/message";
 import { getSocket, disconnectSocket } from "@/api/socket/socketClient";
 import { registerChatHandlers } from "@/api/socket/chatEvents";
-import { initAuth } from "@/hooks/useInitAuth";
+import { useInitAuth } from "@/hooks/useInitAuth";
+import { useAuthStore } from "@/store/useAuthStore";
 
 export const useChatSocket = (chatId: string) => {
     const [messages, setMessages] = useState<MessageType[]>([]);
     const [socketReady, setSocketReady] = useState(false);
+    const accessToken = useAuthStore((state) => state.accessToken);
 
+    useInitAuth();
     useEffect(() => {
+        if (!accessToken) return
+
         const connect = async () => {
-            await initAuth();
+
             const socket = getSocket();
             registerChatHandlers(socket, chatId, setMessages);
             setSocketReady(true);
@@ -21,7 +26,7 @@ export const useChatSocket = (chatId: string) => {
         connect();
 
         return () => disconnectSocket();
-    }, [chatId]);
+    }, [chatId, accessToken]);
 
     return { messages, setMessages, socketReady };
 };
