@@ -1,4 +1,4 @@
-import { Controller, Post, Req, Param, UseGuards } from '@nestjs/common';
+import { Controller, Post, Req, Param, UseGuards, Get } from '@nestjs/common';
 import { ChatService } from './chat.service';
 import { AuthGuard } from '../auth/auth.guard'
 
@@ -15,5 +15,11 @@ export class ChatController {
             parseInt(userId),
         );
         return chat;
+    }
+
+    @Get()
+    async getUserChats(@Req() req) {
+        const userId = req.user.sub
+        return await this.chatService.getChats(userId)
     }
 }

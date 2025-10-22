@@ -20,7 +20,6 @@ export class ChatService {
     }
 
     async isUserInChat(userId: number, chatKey: string): Promise<boolean> {
-        // Знаходимо чат за його string chatId
         const chat = await this.prisma.chat.findUnique({
             where: { chatId: chatKey },
             select: { id: true },
@@ -41,7 +40,6 @@ export class ChatService {
     }
 
     async getMessagesByChat(chatKey: string) {
-        // Шукаємо чат по string chatId
         const chat = await this.prisma.chat.findUnique({
             where: { chatId: chatKey },
             select: { id: true },
@@ -106,6 +104,40 @@ export class ChatService {
 
         return message;
     }
+
+    async getChats(userId: number) {
+        return await this.prisma.chat.findMany({
+            where: {
+                users: {
+                    some: {
+                        userId,
+                    },
+                },
+            },
+            include: {
+                users: {
+                    include: {
+                        user: true,
+                    },
+                },
+                messages: {
+                    include: {
+                        sender: {
+                            select: {
+                                id: true,
+                                name: true,
+                                avatarLink: true,
+                            },
+                        },
+                    },
+                    orderBy: {
+                        createdAt: 'asc',
+                    },
+                },
+            },
+        });
+    }
+
 
 
     getMessages(): ChatMessage[] {
