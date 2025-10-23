@@ -11,6 +11,7 @@ import MessageCard from "@/components/MessageCard";
 import SendMsgInput from "@/components/SendMsgInput";
 import { emitChatMessage } from "@/api/socket/chatEmitters";
 import { useChatScroll } from "@/hooks/useChatScroll";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 
 export default function ChatPage() {
     const { chatId } = useParams();
@@ -18,7 +19,7 @@ export default function ChatPage() {
     const { messages, setMessages, socketReady } = useChatSocket(chatId as string);
     const [newMessage, setNewMessage] = useState("");
     const { currentUserId } = useUserStore();
-
+    const { isPartnerOnline, partnerName: onlinePartnerName } = useOnlineStatus(messages, currentUserId, socketReady);
     const {
         messageContainerRef,
         loadingMore,
@@ -93,8 +94,14 @@ export default function ChatPage() {
                 >
                     <ArrowLeft className="text-white w-6 h-6" />
                 </button>
-                <h1 className="text-2xl font-bold text-white">
-                    {chatPartnerName || "Loading chat..."}
+                <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+                    {onlinePartnerName || "Loading chat..."}
+                    {isPartnerOnline !== null && (
+                        <span
+                            className={`w-3 h-3 rounded-full ${isPartnerOnline ? "bg-violet-700" : "bg-gray-500"
+                                }`}
+                        ></span>
+                    )}
                 </h1>
             </div>
 

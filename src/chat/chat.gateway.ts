@@ -8,6 +8,8 @@ import {
 import { Server, Socket } from 'socket.io';
 import { ChatService } from './chat.service';
 import { JwtService } from '@nestjs/jwt';
+import { Inject } from '@nestjs/common';
+import { Redis } from 'ioredis';
 
 @WebSocketGateway({
   cors: { origin: 'http://localhost:3000' },
@@ -16,12 +18,16 @@ export class ChatGateway {
   @WebSocketServer()
   server: Server;
 
+
+
   constructor(
     private readonly chatService: ChatService,
     private readonly jwtService: JwtService,
-  ) { }
+    @Inject('REDIS_CLIENT') private readonly redis: Redis
+  ) {
+  }
 
-  handleConnection(client: Socket) {
+  async handleConnection(client: Socket) {
     const token = client.handshake.auth.token as string | undefined;
 
     if (!token) {
@@ -34,13 +40,44 @@ export class ChatGateway {
       const payload = this.jwtService.verify(token);
       client.data.user = payload;
       console.log(`Client connected: ${client.id}, user: ${payload.name}`);
+
+      await this.redis.hset('chat_online_users', payload.sub, JSON.stringify({
+        id: payload.sub,
+        name: payload.name,
+        socketId: client.id,
+      }));
+
       client.emit('connected');
+      this.emitOnlineUsers();
     } catch (err) {
       console.error("JWT verification failed:", err);
       client.disconnect();
     }
   }
 
+  async handleDisconnect(client: Socket) {
+    const user = client.data.user;
+    if (user) {
+      await this.redis.hdel('chat_online_users', user.sub);
+      console.log(`Client disconnected: ${client.id}, user: ${user.name}`);
+      this.emitOnlineUsers();
+    } else {
+      console.log(`Client disconnected: ${client.id}`);
+    }
+  }
+
+  private async emitOnlineUsers() {
+    const onlineUsers = await this.redis.hvals('chat_online_users');
+    const users = onlineUsers.map(u => JSON.parse(u));
+    this.server.emit('onlineUsers', users);
+  }
+
+  @SubscribeMessage('getOnlineUsers')
+  async handleGetOnlineUsers(@ConnectedSocket() client: Socket) {
+    const onlineUsers = await this.redis.hvals('chat_online_users');
+    const users = onlineUsers.map(u => JSON.parse(u));
+    client.emit('onlineUsers', users);
+  }
 
   @SubscribeMessage('joinChat')
   async handleJoinChat(
@@ -60,11 +97,6 @@ export class ChatGateway {
 
     const messages = await this.chatService.getMessagesByChat(data.chatId);
     client.emit('chatHistory', messages);
-  }
-
-  handleDisconnect(client: Socket) {
-
-    console.log(`Client disconnected: ${client.id}`);
   }
 
   @SubscribeMessage('loadMoreMessages')
@@ -104,5 +136,4 @@ export class ChatGateway {
       client.emit('error', 'Failed to send message');
     }
   }
-
 }
