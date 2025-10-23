@@ -17,7 +17,7 @@ export default function Page() {
     const onLogin: SubmitHandler<LoginUserType> = async (data) => {
         try {
             await loginUser(data)
-            router.replace('/')
+            router.replace('/chats')
         } catch (err: any) {
             alert(err.response?.data?.message || err)
         }
@@ -33,7 +33,7 @@ export default function Page() {
     const onRegister: SubmitHandler<RegisterUserType> = async (data) => {
         try {
             await registerUser(data)
-            router.replace('/')
+            router.replace('/chats')
 
         } catch (err: any) {
             alert(err.response?.data?.message || err)

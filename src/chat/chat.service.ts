@@ -39,7 +39,7 @@ export class ChatService {
         return !!userChat;
     }
 
-    async getMessagesByChat(chatKey: string) {
+    async getMessagesByChat(chatKey: string, cursor?: number, limit = 35) {
         const chat = await this.prisma.chat.findUnique({
             where: { chatId: chatKey },
             select: { id: true },
@@ -49,14 +49,21 @@ export class ChatService {
 
         const messages = await this.prisma.message.findMany({
             where: { chatId: chat.id },
-            orderBy: { createdAt: 'asc' },
+            orderBy: { createdAt: 'desc' }, // Змінив на 'desc' для правильного пагінації
+            take: limit,
+            ...(cursor && { skip: 1, cursor: { id: cursor } }),
             include: {
-                sender: { select: { id: true, name: true, avatarLink: true } },
+                sender: {
+                    select: { id: true, name: true, avatarLink: true },
+                },
             },
         });
 
-        return messages;
+        return messages.reverse(); // Reverse щоб повертати від старих до нових
     }
+
+
+
 
     async getOrCreatePrivateChat(userId1: number, userId2: number) {
         const chatKey = [userId1, userId2].sort((a, b) => a - b).join('-');

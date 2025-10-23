@@ -1,9 +1,8 @@
 import api from "../axios";
 
 export async function getProfile() {
-    await api.get('/users/profile').then(function (res) {
-        console.log(res.data)
-    })
+    const response = await api.get('/users/profile');
+    return response.data;
 }
 
 export async function searchUserByName(name: string) {

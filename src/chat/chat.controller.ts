@@ -22,4 +22,6 @@ export class ChatController {
         const userId = req.user.sub
         return await this.chatService.getChats(userId)
     }
+
+
 }

@@ -63,7 +63,25 @@ export class ChatGateway {
   }
 
   handleDisconnect(client: Socket) {
+
     console.log(`Client disconnected: ${client.id}`);
+  }
+
+  @SubscribeMessage('loadMoreMessages')
+  async handleLoadMoreMessages(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { chatId: string; cursor?: number },
+  ) {
+    const userId = client.data.user.sub;
+
+    const isMember = await this.chatService.isUserInChat(userId, payload.chatId);
+    if (!isMember) {
+      client.emit('error', 'You are not a member of this chat');
+      return;
+    }
+
+    const messages = await this.chatService.getMessagesByChat(payload.chatId, payload.cursor);
+    client.emit('moreMessages', messages);
   }
 
   @SubscribeMessage('chatMessage')

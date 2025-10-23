@@ -14,16 +14,19 @@ export const registerChatHandlers = (
     socket.on("joinedChat", (id) => console.log("Joined chat:", id));
 
     socket.on("chatHistory", (msgs: MessageType[]) => {
-        console.log("Received chat history:", msgs);
         setMessages(() => msgs);
     });
 
+
     socket.on("chatMessage", (msg: MessageType) => {
-        console.log("Received new message:", msg);
         setMessages((prev) => {
             if (prev.find((m) => m.id === msg.id)) return prev;
             return [...prev, msg];
         });
+    });
+
+    socket.on("moreMessages", (olderMsgs: MessageType[]) => {
+        setMessages((prev) => [...olderMsgs, ...prev]);
     });
 
     socket.on("disconnect", (reason) => console.log("Socket disconnected:", reason));
