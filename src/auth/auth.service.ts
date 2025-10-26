@@ -5,10 +5,13 @@ import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { LoginUserDto } from 'src/users/dto/login-user.dto';
 import { UnauthorizedException } from '@nestjs/common';
+import { EmailService } from 'src/email/email.service';
+import { randomBytes } from 'crypto';
+
 
 @Injectable()
 export class AuthService {
-    constructor(private readonly prismaService: PrismaService, private readonly jwtService: JwtService) { }
+    constructor(private readonly prismaService: PrismaService, private readonly jwtService: JwtService, private readonly emailService: EmailService) { }
 
     async register(data: CreateUserDto) {
 
@@ -75,6 +78,68 @@ export class AuthService {
         });
     }
 
+    async changePassword(userId: number, currentPassword: string, newPassword: string) {
+        const user = await this.prismaService.user.findUnique({ where: { id: userId } });
+
+        if (!user) {
+            throw new BadRequestException('User not found');
+        }
+
+        const isMatch = await bcrypt.compare(currentPassword, user.password);
+        if (!isMatch) {
+            throw new BadRequestException('Current password is incorrect');
+        }
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+        await this.prismaService.user.update({
+            where: { id: userId },
+            data: { password: hashedPassword },
+        });
+
+        return { message: 'Password successfully changed' };
+    }
+
+    async requestPasswordReset(email: string) {
+        const user = await this.prismaService.user.findUnique({ where: { email } });
+        if (!user) return;
+
+        const token = randomBytes(32).toString('hex');
+        const expires = new Date(Date.now() + 30 * 60 * 1000);
+
+        await this.prismaService.user.update({
+            where: { id: user.id },
+            data: {
+                emailVerificationToken: token,
+                expireEmailVerificationToken: expires,
+            },
+        });
+
+        await this.emailService.sendResetEmail(user.email, token);
+    }
+
+    async resetPassword(token: string, newPassword: string) {
+        const user = await this.prismaService.user.findFirst({
+            where: { emailVerificationToken: token },
+        });
+
+        if (!user || user.expireEmailVerificationToken! < new Date()) {
+            throw new BadRequestException('Token invalid or expired');
+        }
+
+        const hashed = await bcrypt.hash(newPassword, 10);
+
+        await this.prismaService.user.update({
+            where: { id: user.id },
+            data: {
+                password: hashed,
+                emailVerificationToken: null,
+                expireEmailVerificationToken: null,
+            },
+        });
+
+        return { message: 'Password successfully reset' };
+    }
 
 
 }

@@ -2,7 +2,6 @@ import { AuthService } from './auth.service';
 import {
   Body,
   Controller,
-  Get,
   Res,
   Req,
   Post,
@@ -15,6 +14,7 @@ import { LoginUserDto } from 'src/users/dto/login-user.dto';
 import { AuthGuard } from './auth.guard';
 import type { Response, Request as ExpressRequest } from 'express';
 import { JwtService } from '@nestjs/jwt';
+import { BadRequestException } from '@nestjs/common';
 
 @Controller('auth')
 export class AuthController {
@@ -99,12 +99,35 @@ export class AuthController {
   }
 
   @UseGuards(AuthGuard)
-  @Get('profile')
-  getProfile(@Request() req) {
-    return req.user
+  @Post('change-password')
+  async changePassword(
+    @Req() req,
+    @Body() body: { currentPassword: string; newPassword: string }
+  ) {
+    const userId = req.user.sub;
+    const { currentPassword, newPassword } = body;
+
+    if (!currentPassword || !newPassword) {
+      throw new BadRequestException('Both current and new passwords are required');
+    }
+
+    return await this.authService.changePassword(userId, currentPassword, newPassword);
   }
 
+  @Public()
+  @Post('forgot-password')
+  async forgotPassword(@Body('email') email: string) {
+    await this.authService.requestPasswordReset(email);
+    return { message: 'Reset link sent (if user exists)' };
+  }
 
-
+  @Public()
+  @Post('reset-password')
+  async resetPassword(
+    @Body('token') token: string,
+    @Body('password') password: string,
+  ) {
+    return this.authService.resetPassword(token, password);
+  }
 
 }
