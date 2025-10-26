@@ -14,6 +14,10 @@ export function useInitAuth() {
     const hasAttemptedRef = useRef(false);
 
     useEffect(() => {
+        const path = window.location.pathname;
+        if (path.startsWith("/auth")) return;
+        if (path.startsWith("/reset-pass")) return;
+
         const refreshToken = async () => {
             if (isLoading || hasAttemptedRef.current) return;
 

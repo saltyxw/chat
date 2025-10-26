@@ -4,6 +4,7 @@ import { useForm, SubmitHandler } from "react-hook-form"
 import { loginUser, registerUser } from "@/api/auth/auth"
 import { useRouter } from "next/navigation"
 import { Form } from "@/components/Form"
+import Link from "next/link"
 
 export default function Page() {
     const router = useRouter()
@@ -70,6 +71,7 @@ export default function Page() {
                     ]}
                 />
             </div>
+            <Link href='/forgot-password'>Forgot password?</Link>
         </main>
     )
 }

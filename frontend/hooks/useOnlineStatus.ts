@@ -18,7 +18,6 @@ export const useOnlineStatus = (messages: any[], currentUserId: number, socketRe
         const handleOnlineUsers = (users: { id: number; name: string }[]) => {
             const online = users.some(u => u.id === partner.sender.id);
             setIsPartnerOnline(online);
-            console.log(`Chat partner (${partner.sender.name}) is ${online ? "online" : "offline"}`);
         };
 
         socket.on("onlineUsers", handleOnlineUsers);

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
+import { BadRequestException } from '@nestjs/common';
 
 @Injectable()
 export class UsersService {
@@ -30,5 +31,19 @@ export class UsersService {
         });
     }
 
+    async changeName(userId: number, newName: string) {
+        const user = await this.prismaService.user.findUnique({ where: { id: userId } });
+
+        if (!user) {
+            throw new BadRequestException('User not found');
+        }
+
+        await this.prismaService.user.update({
+            where: { id: userId },
+            data: { name: newName },
+        });
+
+        return { message: 'Name successfully changed', newName };
+    }
 
 }

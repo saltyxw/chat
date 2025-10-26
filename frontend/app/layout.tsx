@@ -4,6 +4,8 @@ import "./globals.css";
 import InitAuthLayout from "@/components/InitAuthLayout";
 import QueryProvider from "@/components/QueryClientProvider";
 import SideMenu from "@/components/SideMenu";
+import { Toaster } from 'react-hot-toast';
+import { SocketProvider } from "@/components/SocketProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -25,20 +27,21 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-
   return (
     <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased ml-16`}
       >
-        <QueryProvider>
-          <InitAuthLayout>
+        <InitAuthLayout>
+          <QueryProvider>
             <SideMenu></SideMenu>
-            {children}
-          </InitAuthLayout>
-        </QueryProvider>
-
+            <SocketProvider>
+              {children}
+              <Toaster position="bottom-right" />
+            </SocketProvider>
+          </QueryProvider>
+        </InitAuthLayout>
       </body>
-    </html>
+    </html >
   );
 }

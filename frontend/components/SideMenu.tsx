@@ -1,6 +1,5 @@
 "use client";
-import { useRouter, usePathname } from "next/navigation";
-import { createOrGetPrivateChat } from "@/api/chat/chat";
+import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import useDebounce from "@/hooks/useDebounce";
 import { searchUserByName } from "@/api/user/user";
@@ -9,12 +8,12 @@ import { Menu, X } from "lucide-react";
 import { sideBarLinks } from "@/config/sideMenuLinks";
 import Link from "next/link";
 import { useUserStore } from "@/store/useUserStore";
+import UserCard from "./UserCard";
 
 export default function SideMenu() {
     const [searchUser, setSearchUser] = useState("");
     const [results, setResults] = useState<any[]>([]);
     const debounceSearchUser = useDebounce(searchUser, 1000);
-    const router = useRouter();
     const pathname = usePathname();
     const [open, setOpen] = useState(false);
     const user = useUserStore((state) => state.user);
@@ -30,15 +29,6 @@ export default function SideMenu() {
             setResults(data);
         } catch (err) {
             console.error(err);
-        }
-    };
-
-    const handleWrite = async (userId: number) => {
-        try {
-            const chat = await createOrGetPrivateChat(userId);
-            router.push(`/chats/private/${chat.chatId}`);
-        } catch (err) {
-            console.error("Failed to start chat:", err);
         }
     };
 
@@ -74,21 +64,7 @@ export default function SideMenu() {
                             {results.length > 0 && (
                                 <div className="absolute w-full bg-neutral-700 mt-1 rounded shadow">
                                     {results.map((user) => (
-                                        <div
-                                            key={user.id}
-                                            className="p-2 flex justify-between items-center"
-                                        >
-                                            <div>
-                                                <div className="font-semibold">{user.name}</div>
-                                                <div className="text-sm">{user.email}</div>
-                                            </div>
-                                            <button
-                                                onClick={() => handleWrite(user.id)}
-                                                className="bg-violet-900 text-white px-3 py-1 rounded hover:bg-blue-800"
-                                            >
-                                                Write
-                                            </button>
-                                        </div>
+                                        <UserCard key={user.id} userId={user.id} avatarLink={user.avatarLink} name={user.name}></UserCard>
                                     ))}
                                 </div>
                             )}
