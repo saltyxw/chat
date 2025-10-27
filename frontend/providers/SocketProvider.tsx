@@ -36,7 +36,7 @@ export const SocketProvider = ({ children }: SocketProviderProps) => {
 
         s.on("chatMessage", (msg: MessageType) => {
             if (msg.sender.id !== currentUserId) {
-                toast(`${msg.sender.name}: ${msg.text}`, { icon: "💬" });
+                toast(`${msg.sender.name}: ${msg.text}`);
             }
         });
 
