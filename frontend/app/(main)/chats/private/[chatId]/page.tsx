@@ -9,7 +9,7 @@ import { useUserStore } from "@/store/useUserStore";
 import { ArrowLeft } from "lucide-react";
 import MessageCard from "@/components/MessageCard";
 import SendMsgInput from "@/components/SendMsgInput";
-import { emitChatMessage, emitDeleteMessage, emitEditMessage } from "@/api/socket/chatEmitters";
+import { emitChatMessage } from "@/api/socket/chatEmitters";
 import { useChatScroll } from "@/hooks/useChatScroll";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 

@@ -1,14 +1,20 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@/store/useAuthStore";
-import { getUserChats } from "@/api/chat/chat";
 import { useUserStore } from "@/store/useUserStore";
-import ChatPage from "./private/[chatId]/page"; // імпортуємо компонент чату прямо
-import { useState } from "react";
+import { getUserChats } from "@/api/chat/chat";
+import { Suspense } from "react";
 
-export default function ChatsPage() {
+const ChatPageWrapper = dynamic(
+    () => import("./private/[chatId]/page"),
+    { ssr: false }
+);
+
+
+function ChatsContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const selectedChatId = searchParams.get("chatId");
@@ -22,9 +28,13 @@ export default function ChatsPage() {
         enabled: !!accessToken,
     });
 
+    if (!accessToken) return null;
+    if (isPending) return <p>Loading chats...</p>;
+    if (error) return <p>Failed to load chats</p>;
+
     const getChatPartnerName = (chat: any) => {
         if (!chat.users || !currentUserId) return "Unknown User";
-        const partner = chat.users.find((userChat: any) => userChat.userId !== currentUserId);
+        const partner = chat.users.find((u: any) => u.userId !== currentUserId);
         return partner?.user?.name || "Unknown User";
     };
 
@@ -33,15 +43,10 @@ export default function ChatsPage() {
         return chat.messages[chat.messages.length - 1]?.text || "No messages yet";
     };
 
-    if (isPending) return <p>Loading chats...</p>;
-    if (error) return <p>Failed to load chats</p>;
-
     return (
         <main className="flex min-h-screen bg-gray-900 text-white">
-            {/* LEFT SIDEBAR */}
             <aside className="w-1/3 bg-indigo-950 border-r border-gray-800">
                 <h2 className="text-3xl text-center py-5 font-semibold">Your chats</h2>
-
                 {chats?.length ? (
                     chats.map((chat: any) => {
                         const partnerName = getChatPartnerName(chat);
@@ -69,10 +74,9 @@ export default function ChatsPage() {
                 )}
             </aside>
 
-            {/* RIGHT PANEL (Chat) */}
             <section className="flex-1">
                 {selectedChatId ? (
-                    <ChatPageWrapper chatId={selectedChatId} partnerName={partnerName || ""} />
+                    <ChatPageWrapper chatId={selectedChatId} initialPartnerName={partnerName || ""} />
                 ) : (
                     <div className="h-full flex items-center justify-center text-gray-400">
                         Select a chat to start messaging
@@ -83,13 +87,10 @@ export default function ChatsPage() {
     );
 }
 
-// Обгортка для ChatPage, щоб прокинути props
-function ChatPageWrapper({ chatId, partnerName }: { chatId: string; partnerName: string }) {
+export default function ChatsPage() {
     return (
-        <ChatPage
-            key={chatId} // оновлення при зміні чату
-            initialPartnerName={partnerName}
-            chatId={chatId}
-        />
+        <Suspense fallback={<div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">Loading...</div>}>
+            <ChatsContent />
+        </Suspense>
     );
 }
