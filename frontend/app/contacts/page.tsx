@@ -14,7 +14,6 @@ export default function Page() {
         queryFn: getChatPartners,
         enabled: !!accessToken,
     });
-    console.log(data)
 
     if (isLoading)
         return (

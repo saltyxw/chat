@@ -1,8 +1,12 @@
-import { Controller, UseGuards } from '@nestjs/common';
+import {
+  Controller, UseGuards, UseInterceptors,
+  UploadedFile,
+} from '@nestjs/common';
 import { UsersService } from './users.service';
 import { Get, Request, Body, Post, Req } from '@nestjs/common';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { BadRequestException } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 @Controller('users')
 export class UsersController {
@@ -31,5 +35,13 @@ export class UsersController {
     }
 
     return await this.usersService.changeName(userId, newName.trim());
+  }
+
+  @UseGuards(AuthGuard)
+  @Post('change-avatar')
+  @UseInterceptors(FileInterceptor('avatar'))
+  async changeAvatar(@UploadedFile() file: Express.Multer.File, @Req() req) {
+    const userId = req.user.sub;
+    return this.usersService.changeAvatarImage(userId, file);
   }
 }

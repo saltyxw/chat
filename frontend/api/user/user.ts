@@ -15,3 +15,13 @@ export async function changeUsername(newName: string) {
     await api.post('/users/change-name', { newName })
     router.replace('/profile')
 }
+
+export const changeAvatar = async (file: File) => {
+    const formData = new FormData();
+    formData.append("avatar", file);
+
+    const response = await api.post("/users/change-avatar", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+    });
+    return response.data;
+};

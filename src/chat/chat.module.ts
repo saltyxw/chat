@@ -6,11 +6,13 @@ import { JwtModule } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { ChatController } from './chat.controller';
 import { RedisModule } from 'src/redis/redis.module';
+import { CloudinaryModule } from 'src/cloudinary/cloudinary.module';
 
 @Module({
   controllers: [ChatController],
   providers: [ChatGateway, ChatService],
   imports: [
+    CloudinaryModule,
     ConfigModule.forRoot(),
     JwtModule.registerAsync({
       imports: [ConfigModule, RedisModule],

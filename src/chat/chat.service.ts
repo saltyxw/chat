@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
+import { v2 as cloudinary } from 'cloudinary';
 
 
 export interface ChatMessage {
@@ -12,8 +13,6 @@ export interface ChatMessage {
 export class ChatService {
 
     constructor(private prisma: PrismaService) { }
-
-
 
     async isUserInChat(userId: number, chatKey: string): Promise<boolean> {
         const chat = await this.prisma.chat.findUnique({
@@ -85,7 +84,7 @@ export class ChatService {
     }
 
 
-    async addMessageToChat(chatKey: string, senderId: number, text: string) {
+    async addMessageToChat(chatKey: string, senderId: number, text?: string, image?: string, video?: string) {
         const chat = await this.prisma.chat.findUnique({
             where: { chatId: chatKey },
             select: { id: true },
@@ -96,6 +95,8 @@ export class ChatService {
         const message = await this.prisma.message.create({
             data: {
                 text,
+                image,
+                video,
                 chatId: chat.id,
                 senderId,
             },
@@ -106,6 +107,7 @@ export class ChatService {
 
         return message;
     }
+
 
     async getChats(userId: number) {
         return await this.prisma.chat.findMany({
@@ -160,7 +162,7 @@ export class ChatService {
         const partners: {
             chatId: string;
             partner: { id: number; name: string; avatarLink?: string };
-            lastMessage?: { text: string; senderId: number; createdAt: Date };
+            lastMessage?: { text: string | null; senderId: number; createdAt: Date };
         }[] = [];
 
         for (const uc of userChats) {
@@ -189,6 +191,36 @@ export class ChatService {
         }
 
         return partners;
+    }
+
+    async editMessage(messageId: number, userId: number, newText: string) {
+        const message = await this.prisma.message.findUnique({
+            where: { id: messageId },
+        });
+
+        if (!message) throw new Error('Message not found');
+        if (message.senderId !== userId) throw new Error('Forbidden');
+
+        return await this.prisma.message.update({
+            where: { id: messageId },
+            data: { text: newText },
+            include: {
+                sender: { select: { id: true, name: true, avatarLink: true } },
+            },
+        });
+    }
+
+    async deleteMessage(messageId: number, userId: number) {
+        const message = await this.prisma.message.findUnique({
+            where: { id: messageId },
+        });
+
+        if (!message) throw new Error('Message not found');
+        if (message.senderId !== userId) throw new Error('Forbidden');
+
+        await this.prisma.message.delete({ where: { id: messageId } });
+
+        return { success: true, id: messageId };
     }
 
 

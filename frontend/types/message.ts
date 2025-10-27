@@ -1,10 +1,12 @@
-export type MessageType = {
+export interface MessageType {
     id: number;
-    text: string;
-    createdAt: Date;
+    text?: string;
+    image?: string;
+    video?: string;
+    createdAt: string;
     sender: {
         id: number;
         name: string;
-        avatarLink?: string | null;
+        avatarLink?: string;
     };
 }

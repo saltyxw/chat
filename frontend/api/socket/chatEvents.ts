@@ -9,11 +9,10 @@ export const registerChatHandlers = (
     currentUserId: number
 ) => {
     socket.on("connect", () => {
-        console.log("Connected to chat server, socket id:", socket.id);
         socket.emit("joinChat", { chatId });
     });
 
-    socket.on("joinedChat", (id) => console.log("Joined chat:", id));
+    socket.on("joinedChat", (id) => console.log("chat", id));
 
     socket.on("chatHistory", (msgs: MessageType[]) => {
         setMessages(() => msgs);

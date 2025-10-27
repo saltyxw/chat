@@ -1,26 +1,29 @@
-"use client"
+"use client";
 
-import { User } from "lucide-react"
-import { createOrGetPrivateChat } from "@/api/chat/chat"
-import { useRouter } from "next/navigation"
+import { User } from "lucide-react";
+import { createOrGetPrivateChat } from "@/api/chat/chat";
+import { useRouter } from "next/navigation";
 
 interface UserCardProps {
-    avatarLink?: string
-    name: string
-    userId: number
+    avatarLink?: string;
+    name: string;
+    userId: number;
 }
 
-export default function UserCard({ chatId, avatarLink, name, userId }: UserCardProps) {
-    const router = useRouter()
+export default function UserCard({ avatarLink, name, userId }: UserCardProps) {
+    const router = useRouter();
 
     const handleWrite = async (userId: number) => {
         try {
             const chat = await createOrGetPrivateChat(userId);
-            router.push(`/chats/private/${chatId}`);
+            const chatId = chat.chatId;
+
+            router.push(`/chats/private/${chatId}?name=${encodeURIComponent(name)}`);
         } catch (err) {
             console.error("Failed to start chat", err);
         }
     };
+
     return (
         <div
             className="flex items-center justify-between gap-4 bg-neutral-900 shadow-sm hover:shadow-md transition-shadow duration-200 p-4 rounded-xl border border-violet-400 cursor-pointer hover:bg-neutral-700"
@@ -37,17 +40,16 @@ export default function UserCard({ chatId, avatarLink, name, userId }: UserCardP
                 </div>
             )}
 
-            <div>
-                <h2 className=" font-medium text-lg">
-                    {name}
-                </h2>
+            <div className="flex-1 min-w-0">
+                <h2 className="font-medium text-lg truncate">{name}</h2>
             </div>
+
             <button
                 onClick={() => handleWrite(userId)}
-                className="bg-violet-900 text-white px-3 py-1 rounded hover:bg-blue-800"
+                className="bg-violet-900 text-white px-3 py-1 rounded hover:bg-violet-700 transition"
             >
                 Write
             </button>
         </div>
-    )
+    );
 }

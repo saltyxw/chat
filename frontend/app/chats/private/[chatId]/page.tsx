@@ -1,36 +1,50 @@
 "use client";
 
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useChatSocket } from "@/api/socket/useChatSocket";
 import { getSocket } from "@/api/socket/socketClient";
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { MessageType } from "@/types/message";
 import { useUserStore } from "@/store/useUserStore";
 import { ArrowLeft } from "lucide-react";
 import MessageCard from "@/components/MessageCard";
 import SendMsgInput from "@/components/SendMsgInput";
-import { emitChatMessage } from "@/api/socket/chatEmitters";
+import { emitChatMessage, emitDeleteMessage, emitEditMessage } from "@/api/socket/chatEmitters";
 import { useChatScroll } from "@/hooks/useChatScroll";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 
-export default function ChatPage() {
-    const { chatId } = useParams();
+interface ChatPageProps {
+    chatId?: string;
+    initialPartnerName?: string;
+}
+
+export default function ChatPage({ chatId, initialPartnerName }: ChatPageProps) {
     const router = useRouter();
-    const { messages, setMessages, socketReady } = useChatSocket(chatId as string);
+    const params = useParams();
+    const searchParams = useSearchParams();
+
+    const activeChatId = chatId || (params?.chatId as string);
+    const partnerNameFromUrl = searchParams.get("name");
+
+    const { messages, setMessages, socketReady } = useChatSocket(activeChatId);
     const [newMessage, setNewMessage] = useState("");
     const { currentUserId } = useUserStore();
-    const { isPartnerOnline, partnerName: onlinePartnerName } = useOnlineStatus(messages, currentUserId, socketReady);
+    const { isPartnerOnline, partnerName: onlinePartnerName } = useOnlineStatus(
+        messages,
+        currentUserId,
+        socketReady
+    );
     const {
         messageContainerRef,
         loadingMore,
         hasMore,
         scrollToBottom,
-        resetScrollState
-    } = useChatScroll(chatId as string, messages, setMessages, socketReady);
+        resetScrollState,
+    } = useChatScroll(activeChatId, messages, setMessages, socketReady);
 
     const handleSend = () => {
         if (!socketReady || !newMessage.trim()) return;
-        emitChatMessage(chatId as string, newMessage);
+        emitChatMessage(activeChatId, newMessage);
         setNewMessage("");
     };
 
@@ -53,37 +67,41 @@ export default function ChatPage() {
             setTimeout(() => {
                 const container = messageContainerRef.current;
                 if (container) {
-                    const isNearBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 100;
-                    if (isNearBottom) {
-                        scrollToBottom();
-                    }
+                    const isNearBottom =
+                        container.scrollTop + container.clientHeight >=
+                        container.scrollHeight - 100;
+                    if (isNearBottom) scrollToBottom();
                 }
             }, 100);
         };
 
+        const handleMessageEdited = (msg: MessageType) => {
+            setMessages(prev => prev.map(m => (m.id === msg.id ? msg : m)));
+        };
+
+        const handleMessageDeleted = ({ id }: { id: number }) => {
+            setMessages(prev => prev.filter(m => m.id !== id));
+        };
+
+
         const handleChatHistory = (msgs: MessageType[]) => {
             resetScrollState();
             setMessages(msgs);
-
-            setTimeout(() => {
-                scrollToBottom();
-            }, 100);
+            setTimeout(scrollToBottom, 100);
         };
 
         socket.on("chatMessage", handleChatMessage);
         socket.on("chatHistory", handleChatHistory);
+        socket.on("messageEdited", handleMessageEdited);
+        socket.on("messageDeleted", handleMessageDeleted);
 
         return () => {
             socket.off("chatMessage", handleChatMessage);
             socket.off("chatHistory", handleChatHistory);
+            socket.off("messageEdited", handleMessageEdited);
+            socket.off("messageDeleted", handleMessageDeleted);
         };
     }, [socketReady, setMessages, scrollToBottom, messageContainerRef, resetScrollState]);
-
-    const chatPartnerName = useMemo(() => {
-        if (messages.length === 0) return null;
-        const firstMsg = messages.find((msg) => msg.sender.id !== currentUserId);
-        return firstMsg?.sender.name || "Chat";
-    }, [messages, currentUserId]);
 
     return (
         <div className="flex flex-col h-screen p-5 bg-gray-900">
@@ -95,7 +113,7 @@ export default function ChatPage() {
                     <ArrowLeft className="text-white w-6 h-6" />
                 </button>
                 <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-                    {onlinePartnerName || "Loading chat..."}
+                    {onlinePartnerName || partnerNameFromUrl || initialPartnerName || "Loading chat..."}
                     {isPartnerOnline !== null && (
                         <span
                             className={`w-3 h-3 rounded-full ${isPartnerOnline ? "bg-violet-700" : "bg-gray-500"
@@ -141,10 +159,13 @@ export default function ChatPage() {
                 onChange={setNewMessage}
                 onSend={handleSend}
                 disabled={!socketReady || !newMessage.trim()}
+                chatId={activeChatId}
             />
 
             {!socketReady && (
-                <div className="text-center text-yellow-400 mt-2">Connecting to chat...</div>
+                <div className="text-center text-yellow-400 mt-2">
+                    Connecting to chat...
+                </div>
             )}
         </div>
     );

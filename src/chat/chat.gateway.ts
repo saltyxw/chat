@@ -10,6 +10,7 @@ import { ChatService } from './chat.service';
 import { JwtService } from '@nestjs/jwt';
 import { Inject } from '@nestjs/common';
 import { Redis } from 'ioredis';
+import { v2 as cloudinaryType } from 'cloudinary';
 
 @WebSocketGateway({
   cors: { origin: 'http://localhost:3000' },
@@ -23,7 +24,8 @@ export class ChatGateway {
   constructor(
     private readonly chatService: ChatService,
     private readonly jwtService: JwtService,
-    @Inject('REDIS_CLIENT') private readonly redis: Redis
+    @Inject('REDIS_CLIENT') private readonly redis: Redis,
+    @Inject('CLOUDINARY') private readonly cloudinary: typeof cloudinaryType,
   ) {
   }
 
@@ -119,23 +121,77 @@ export class ChatGateway {
   @SubscribeMessage('chatMessage')
   async handleMessage(
     @ConnectedSocket() client: Socket,
-    @MessageBody() payload: { chatId: string; text: string },
+    @MessageBody() payload: { chatId: string; text?: string; media?: { data: string; type: 'image' | 'video' } },
   ) {
     const senderId: number = client.data.user.sub;
 
     try {
+      let imageUrl: string | undefined;
+      let videoUrl: string | undefined;
+
+      if (payload.media) {
+        const buffer = Buffer.from(payload.media.data.split(',')[1], 'base64');
+        const uploadResult = await new Promise<{ url: string; resourceType: string }>((resolve, reject) => {
+          const upload = this.cloudinary.uploader.upload_stream(
+            { folder: 'chat', resource_type: 'auto' },
+            (error, result) => {
+              if (error || !result) return reject(new Error(error?.message || 'Upload error'));
+              resolve({ url: result.secure_url, resourceType: result.resource_type });
+            }
+          );
+          upload.end(buffer);
+        });
+
+        if (uploadResult.resourceType === 'image') imageUrl = uploadResult.url;
+        if (uploadResult.resourceType === 'video') videoUrl = uploadResult.url;
+      }
+
       const message = await this.chatService.addMessageToChat(
         payload.chatId,
         senderId,
         payload.text,
+        imageUrl,
+        videoUrl,
       );
 
       this.server.to(payload.chatId).emit('chatMessage', message);
     } catch (err) {
-      console.error(err);
+      console.error('Failed to send message:', err);
       client.emit('error', 'Failed to send message');
     }
   }
+
+  @SubscribeMessage('editMessage')
+  async handleEditMessage(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { messageId: number; newText: string },
+  ) {
+    const userId = client.data.user.sub;
+
+    try {
+      const updated = await this.chatService.editMessage(payload.messageId, userId, payload.newText);
+      this.server.emit('messageEdited', updated);
+    } catch (err) {
+      client.emit('error', err.message);
+    }
+  }
+
+  @SubscribeMessage('deleteMessage')
+  async handleDeleteMessage(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { messageId: number },
+  ) {
+    const userId = client.data.user.sub;
+
+    try {
+      const deleted = await this.chatService.deleteMessage(payload.messageId, userId);
+      this.server.emit('messageDeleted', deleted);
+    } catch (err) {
+      client.emit('error', err.message);
+    }
+  }
+
+
 
 
 

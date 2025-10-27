@@ -31,7 +31,7 @@ export const SocketProvider = ({ children }: SocketProviderProps) => {
         setSocket(s);
 
         s.on("connect", () => console.log("Global socket connected:", s.id));
-        s.on("disconnect", (reason) => console.log("Global socket disconnected:", reason));
+        s.on("disconnect", (reason) => console.log("global socket", reason));
         s.on("error", (err) => console.error("Socket error:", err));
 
         s.on("chatMessage", (msg: MessageType) => {
